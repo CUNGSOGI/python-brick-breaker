@@ -4,7 +4,7 @@ import random
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '0.3.0' # 레벨 시스템 추가
+__version__ = '0.3.1' # 개발자 치트키(C) 추가
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
@@ -26,7 +26,7 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 DARK_GRAY = (50, 50, 50)
-YELLOW = (255, 255, 0) # 텍스트 강조용
+YELLOW = (255, 255, 0)
 
 # --- 클래스 정의 ---
 
@@ -52,9 +52,8 @@ class Paddle:
 
 class Ball:
     def __init__(self):
-        self.reset(1) # 레벨 1 속도로 시작
+        self.reset(1)
 
-    # [변경] 레벨에 따라 공 속도가 빨라짐
     def reset(self, level):
         self.rect = pygame.Rect(
             SCREEN_WIDTH // 2,
@@ -62,10 +61,8 @@ class Ball:
             BALL_RADIUS * 2,
             BALL_RADIUS * 2
         )
-        
-        # 기본 속도 4 + 레벨당 1씩 증가 (예: 레벨 1=5, 레벨 2=6...)
+        # 레벨이 오를수록 공 속도 증가
         base_speed = 4 + level 
-        
         self.dx = random.choice([-base_speed, base_speed]) 
         self.dy = -base_speed 
 
@@ -103,9 +100,8 @@ def main():
     pygame.display.set_caption(f"{__title__} v{__version__}")
     clock = pygame.time.Clock()
 
-    # 폰트 설정 (점수용, 큰 메시지용)
     score_font = pygame.font.SysFont(None, 36)
-    large_font = pygame.font.SysFont(None, 72) # 승리/패배 메시지용 큰 폰트
+    large_font = pygame.font.SysFont(None, 72)
 
     paddle = Paddle()
     ball = Ball()
@@ -118,34 +114,39 @@ def main():
             bricks.append(Brick(brick_x, brick_y))
     
     score = 0
-    level = 1 # [추가] 레벨 변수
+    level = 1
 
     running = True
     while running:
+        # [1] 이벤트 처리
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            
+            # --- [개발자용 치트키 추가됨] ---
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_c: # 'C' 키를 누르면
+                    # 모든 벽돌을 비활성화(깨짐) 상태로 변경
+                    for brick in bricks:
+                        brick.active = False
+            # -----------------------------
 
         paddle.move()
         
         if not ball.move():
-            # 게임 오버 시 처리
             screen.fill(WHITE)
             text = large_font.render("GAME OVER", True, RED)
-            # 화면 중앙에 배치
             text_rect = text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2))
             screen.blit(text, text_rect)
             pygame.display.flip()
             
-            pygame.time.delay(2000) # 2초 대기
+            pygame.time.delay(2000)
             
-            # 초기화
             score = 0
             level = 1
             ball.reset(level)
             for brick in bricks: brick.active = True
         
-        # 패들 충돌
         if ball.rect.colliderect(paddle.rect):
             collision_rect = ball.rect.clip(paddle.rect)
             if collision_rect.width < collision_rect.height:
@@ -154,11 +155,10 @@ def main():
                 ball.dy *= -1 
                 ball.rect.bottom = paddle.rect.top 
 
-        # 벽돌 충돌
         for brick in bricks:
             if brick.active and ball.rect.colliderect(brick.rect):
                 brick.active = False
-                score += 10 + (level * 2) # 레벨이 높으면 점수도 더 줌
+                score += 10 + (level * 2)
                 
                 collision_rect = ball.rect.clip(brick.rect)
                 if collision_rect.width >= collision_rect.height:
@@ -167,23 +167,18 @@ def main():
                     ball.dx *= -1 
                 break 
 
-        # [승리 조건 체크: 모든 벽돌이 깨졌는가?]
+        # [승리 조건 체크]
         if all(not brick.active for brick in bricks):
-            # 1. 화면에 클리어 메시지 표시
             screen.fill(WHITE)
             clear_text = large_font.render(f"STAGE {level} CLEAR!", True, BLUE)
             text_rect = clear_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2))
             screen.blit(clear_text, text_rect)
             pygame.display.flip()
             
-            # 2. 2초간 멈춤 (플레이어가 성취감을 느낄 시간)
             pygame.time.delay(2000)
             
-            # 3. 레벨 업 및 난이도 상승
             level += 1
-            ball.reset(level) # 속도가 빨라진 공으로 리셋
-            
-            # 4. 벽돌 재생성
+            ball.reset(level)
             for brick in bricks: brick.active = True
 
         screen.fill(WHITE)
@@ -192,7 +187,6 @@ def main():
         for brick in bricks:
             brick.draw(screen)
 
-        # 점수 및 레벨 표시
         score_text = score_font.render(f"Score: {score}  Level: {level}", True, DARK_GRAY)
         screen.blit(score_text, (10, 10))
 
