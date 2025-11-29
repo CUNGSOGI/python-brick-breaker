@@ -1,9 +1,10 @@
 import pygame
 import sys
+import random # [1] 랜덤 모듈 추가
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '0.2.2' # 인덱스 버그 수정
+__version__ = '0.2.3' # 랜덤 방향 추가
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
@@ -59,8 +60,12 @@ class Ball:
             BALL_RADIUS * 2,
             BALL_RADIUS * 2
         )
-        self.dx = 5 
-        self.dy = -5
+        
+        # [2] 랜덤 방향 설정
+        # -5 ~ 5 사이의 숫자 중 0(수직)을 제외하고 선택
+        # random.choice는 리스트 안의 값 중 하나를 무작위로 뽑습니다.
+        self.dx = random.choice([-5, -4, -3, 3, 4, 5]) 
+        self.dy = -5 # 위로는 무조건 날아가야 하므로 고정
 
     def move(self):
         self.rect.x += self.dx
@@ -124,33 +129,27 @@ def main():
             score = 0 
             for brick in bricks: brick.active = True
         
-        # [패들 충돌 로직]
+        # [패들 충돌]
         if ball.rect.colliderect(paddle.rect):
             collision_rect = ball.rect.clip(paddle.rect)
-            
             if collision_rect.width < collision_rect.height:
-                ball.dx *= -1 # 옆면
+                ball.dx *= -1 
             else:
-                ball.dy *= -1 # 윗면
+                ball.dy *= -1 
                 ball.rect.bottom = paddle.rect.top 
 
-        # [수정된 벽돌 충돌 로직]
-        # 반복문을 직접 돌면서 정확한 벽돌 객체를 찾습니다.
+        # [벽돌 충돌]
         for brick in bricks:
             if brick.active and ball.rect.colliderect(brick.rect):
-                # 충돌 발생!
                 brick.active = False
                 score += 10
                 
-                # 물리 반사 계산 (v0.2.1의 로직을 여기로 가져옴)
                 collision_rect = ball.rect.clip(brick.rect)
-                
                 if collision_rect.width >= collision_rect.height:
-                    ball.dy *= -1 # 위아래 충돌
+                    ball.dy *= -1 
                 else:
-                    ball.dx *= -1 # 옆면 충돌
-                
-                break # 한 프레임에 벽돌 하나만 깨지도록 루프 종료
+                    ball.dx *= -1 
+                break 
 
         if all(not brick.active for brick in bricks):
             print("You Win!")
