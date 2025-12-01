@@ -6,11 +6,11 @@ import os
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.3.7'  # 준비 단계 패들 움직임 삭제
+__version__ = '1.4.0'  # 마우스 호버(Hover) 기능 추가
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
-SCREEN_WIDTH = 825  # [수정] 800 -> 825
+SCREEN_WIDTH = 825
 SCREEN_HEIGHT = 600
 PADDLE_WIDTH = 100
 PADDLE_HEIGHT = 10
@@ -49,8 +49,6 @@ POWERUP_DURATION = 300  # 10초
 def create_bricks():
     """초기 벽돌 배치를 생성하여 리스트로 반환합니다."""
     new_bricks = []
-    # 화면 너비가 바뀌었으므로 벽돌 배치 중앙 정렬을 위해 여백 계산
-    # (선택 사항: 꽉 채우려면 BRICK_COLS를 늘리거나 BRICK_WIDTH를 조정해야 함. 현재는 중앙 정렬 유지)
     total_bricks_width = BRICK_COLS * (BRICK_WIDTH + 5) - 5
     start_x = (SCREEN_WIDTH - total_bricks_width) // 2
 
@@ -194,8 +192,8 @@ def main():
     highscore = load_highscore()
     game_state = 'MAIN_MENU'
     menu_selection = 0
+    pause_selection = 0 
     
-    # 파워업 변수
     powerups = []
     score_multiplier = 1
     paddle_width_timer = 0
@@ -204,14 +202,28 @@ def main():
 
     running = True
     while running:
+        # [공통] 현재 마우스 위치 가져오기
+        mouse_pos = pygame.mouse.get_pos()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             
             if event.type == pygame.KEYDOWN:
                 if game_state == 'MAIN_MENU':
-                    if event.key == pygame.K_ESCAPE:
-                        game_state = 'START'
+                    if event.key == pygame.K_UP:
+                        menu_selection = (menu_selection - 1) % 3
+                    elif event.key == pygame.K_DOWN:
+                        menu_selection = (menu_selection + 1) % 3
+                    elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                        if menu_selection == 0:
+                            game_state = 'START'
+                        elif menu_selection == 1:
+                            game_state = 'INSTRUCTIONS'
+                        elif menu_selection == 2:
+                            running = False
+                    elif event.key == pygame.K_ESCAPE:
+                        running = False
                 
                 elif game_state == 'INSTRUCTIONS':
                     if event.key == pygame.K_ESCAPE or event.key == pygame.K_SPACE:
@@ -228,15 +240,38 @@ def main():
                 elif game_state == 'READY':
                     if event.key == pygame.K_SPACE:
                         game_state = 'PLAYING'
+                    elif event.key == pygame.K_ESCAPE: 
+                        game_state = 'PAUSE'
+                        pause_selection = 0
                 
                 elif game_state == 'PLAYING':
                     if event.key == pygame.K_c:
                          for brick in bricks: brick.active = False
                     elif event.key == pygame.K_ESCAPE:
                          game_state = 'PAUSE'
+                         pause_selection = 0
                 
                 elif game_state == 'PAUSE':
-                    if event.key == pygame.K_ESCAPE:
+                    if event.key == pygame.K_UP:
+                        pause_selection = (pause_selection - 1) % 3
+                    elif event.key == pygame.K_DOWN:
+                        pause_selection = (pause_selection + 1) % 3
+                    elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                        if pause_selection == 0: # RESUME
+                            game_state = 'PLAYING'
+                        elif pause_selection == 1: # MAIN MENU
+                            score = 0
+                            level = 1
+                            lives = INITIAL_LIVES
+                            paddle.rect.width = PADDLE_WIDTH
+                            score_multiplier = 1
+                            powerups = []
+                            ball.reset(level)
+                            bricks = create_bricks()
+                            game_state = 'MAIN_MENU'
+                        elif pause_selection == 2: # QUIT GAME
+                            running = False
+                    elif event.key == pygame.K_ESCAPE:
                          game_state = 'PLAYING'
                 
                 elif game_state == 'GAME_OVER':
@@ -261,37 +296,66 @@ def main():
                     mouse_x, mouse_y = event.pos
                     
                     if game_state == 'MAIN_MENU':
-                        if SCREEN_WIDTH/2 - 200 < mouse_x < SCREEN_WIDTH/2 + 200 and \
-                           SCREEN_HEIGHT/2 - 60 < mouse_y < SCREEN_HEIGHT/2 + 10:
-                            game_state = 'START'
-                        
-                        if SCREEN_WIDTH/2 - 200 < mouse_x < SCREEN_WIDTH/2 + 200 and \
-                           SCREEN_HEIGHT/2 + 20 < mouse_y < SCREEN_HEIGHT/2 + 90:
-                            game_state = 'INSTRUCTIONS'
+                        # 클릭으로도 메뉴 선택 가능 (좌표 기반)
+                        if SCREEN_WIDTH/2 - 200 < mouse_x < SCREEN_WIDTH/2 + 200:
+                            if SCREEN_HEIGHT/2 - 60 < mouse_y < SCREEN_HEIGHT/2 + 10:
+                                game_state = 'START'
+                            elif SCREEN_HEIGHT/2 + 20 < mouse_y < SCREEN_HEIGHT/2 + 90:
+                                game_state = 'INSTRUCTIONS'
+                            elif SCREEN_HEIGHT/2 + 100 < mouse_y < SCREEN_HEIGHT/2 + 170:
+                                running = False
                     
                     elif game_state == 'INSTRUCTIONS':
                         if SCREEN_WIDTH/2 - 300 < mouse_x < SCREEN_WIDTH/2 + 300 and \
                            SCREEN_HEIGHT - 50 < mouse_y < SCREEN_HEIGHT - 10:
                             game_state = 'MAIN_MENU'
                             menu_selection = 0
+                    
+                    elif game_state == 'PAUSE':
+                        # 일시정지 클릭
+                        if SCREEN_WIDTH/2 - 150 < mouse_x < SCREEN_WIDTH/2 + 150:
+                            if SCREEN_HEIGHT/2 - 40 < mouse_y < SCREEN_HEIGHT/2 + 10:
+                                game_state = 'PLAYING'
+                            elif SCREEN_HEIGHT/2 + 20 < mouse_y < SCREEN_HEIGHT/2 + 70:
+                                score = 0
+                                level = 1
+                                lives = INITIAL_LIVES
+                                paddle.rect.width = PADDLE_WIDTH
+                                ball.reset(level)
+                                bricks = create_bricks()
+                                game_state = 'MAIN_MENU'
+                            elif SCREEN_HEIGHT/2 + 80 < mouse_y < SCREEN_HEIGHT/2 + 130:
+                                running = False
 
         screen.fill(WHITE)
 
         # 2. 상태별 로직 및 그리기
         if game_state == 'MAIN_MENU':
-            # 메인 메뉴 제목 (위치 고정)
             title_text = title_font.render("BRICK BREAKER", True, BLUE)
-            # [핵심] Y좌표를 SCREEN_HEIGHT/2 - 150 으로 설정
             screen.blit(title_text, title_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 150)))
             
-            menu_items = ["START GAME", "INSTRUCTIONS"]
-            menu_y_positions = [SCREEN_HEIGHT/2 - 20, SCREEN_HEIGHT/2 + 40]
+            menu_items = ["START GAME", "INSTRUCTIONS", "QUIT GAME"]
+            menu_y_positions = [SCREEN_HEIGHT/2 - 20, SCREEN_HEIGHT/2 + 55, SCREEN_HEIGHT/2 + 130]
             
             for i, item in enumerate(menu_items):
-                menu_text = sub_font.render(item, True, ORANGE)
+                # 마우스 호버 감지
+                btn_rect = pygame.Rect(SCREEN_WIDTH/2 - 200, menu_y_positions[i] - 30, 400, 60)
+                if btn_rect.collidepoint(mouse_pos):
+                    menu_selection = i
+                
+                # [수정] 메인 메뉴 글자 색상 수정 (WHITE -> DARK_GRAY)
+                # 선택되면 ORANGE, 아니면 DARK_GRAY (흰색 배경이라서)
+                color = ORANGE if i == menu_selection else DARK_GRAY
+                
+                # 텍스트 그리기
+                menu_text = sub_font.render(item, True, color)
                 text_rect = menu_text.get_rect(center=(SCREEN_WIDTH/2, menu_y_positions[i]))
-                pygame.draw.rect(screen, WHITE, (text_rect.left - 20, text_rect.top - 10, text_rect.width + 40, text_rect.height + 20))
-                pygame.draw.rect(screen, ORANGE, (text_rect.left - 20, text_rect.top - 10, text_rect.width + 40, text_rect.height + 20), 3)
+                
+                # 버튼 테두리 그리기
+                if i == menu_selection:
+                    pygame.draw.rect(screen, WHITE, (text_rect.left - 20, text_rect.top - 10, text_rect.width + 40, text_rect.height + 20))
+                    pygame.draw.rect(screen, ORANGE, (text_rect.left - 20, text_rect.top - 10, text_rect.width + 40, text_rect.height + 20), 3)
+                
                 screen.blit(menu_text, text_rect)
 
         elif game_state == 'INSTRUCTIONS':
@@ -344,13 +408,9 @@ def main():
 
         elif game_state == 'START':
             powerups.clear()
-            
-            # START 화면 제목
             title_text = title_font.render("BRICK BREAKER", True, BLUE)
-            # [핵심] MAIN_MENU와 똑같은 위치 (SCREEN_HEIGHT/2 - 150)로 설정하여 움직이지 않는 것처럼 보이게 함
             screen.blit(title_text, title_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 150)))
             
-            # 나머지 텍스트들을 제목 아래에 배치 (위치 조정함)
             start_text = sub_font.render("Press SPACE to Start", True, BLACK)
             lives_text = score_font.render(f"Lives: {INITIAL_LIVES}", True, RED)
             highscore_text = score_font.render(f"High Score: {highscore}", True, ORANGE)
@@ -505,14 +565,29 @@ def main():
 
         elif game_state == 'PAUSE':
             pause_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-            pause_overlay.set_alpha(128)
+            pause_overlay.set_alpha(150)
             pause_overlay.fill(BLACK)
             screen.blit(pause_overlay, (0, 0))
             
             pause_text = title_font.render("PAUSED", True, ORANGE)
-            resume_text = sub_font.render("Press ESC to Resume", True, WHITE)
-            screen.blit(pause_text, pause_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 60)))
-            screen.blit(resume_text, resume_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 40)))
+            screen.blit(pause_text, pause_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 100)))
+            
+            pause_items = ["RESUME", "MAIN MENU", "QUIT GAME"]
+            for i, item in enumerate(pause_items):
+                # 마우스 호버 감지 (일시정지 화면)
+                text_rect = sub_font.render(item, True, WHITE).get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 20 + i * 60))
+                btn_rect = text_rect.inflate(40, 20)
+                
+                if btn_rect.collidepoint(mouse_pos):
+                    pause_selection = i
+                
+                color = ORANGE if i == pause_selection else WHITE
+                menu_text = sub_font.render(item, True, color)
+                
+                if i == pause_selection:
+                    pygame.draw.rect(screen, ORANGE, (text_rect.left - 20, text_rect.top - 10, text_rect.width + 40, text_rect.height + 20), 2)
+                
+                screen.blit(menu_text, text_rect)
 
         elif game_state == 'GAME_OVER':
             if score > highscore:
