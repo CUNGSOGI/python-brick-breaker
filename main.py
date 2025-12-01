@@ -4,7 +4,7 @@ import random
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.1.0'  # 생명력 시스템 추가
+__version__ = '1.2.0'  # 일시정지 기능 추가
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
@@ -136,7 +136,7 @@ def main():
     score = 0
     level = 1
     lives = INITIAL_LIVES
-    game_state = 'START'  # START, READY, PLAYING, GAME_OVER
+    game_state = 'START'  # START, READY, PLAYING, PAUSE, GAME_OVER
 
     running = True
     while running:
@@ -157,6 +157,12 @@ def main():
                 elif game_state == 'PLAYING':
                     if event.key == pygame.K_c: # 개발자 치트키
                          for brick in bricks: brick.active = False
+                    elif event.key == pygame.K_ESCAPE: # 일시정지
+                         game_state = 'PAUSE'
+                
+                elif game_state == 'PAUSE':
+                    if event.key == pygame.K_ESCAPE: # 일시정지 해제
+                         game_state = 'PLAYING'
                 
                 elif game_state == 'GAME_OVER':
                     if event.key == pygame.K_SPACE:
@@ -280,6 +286,18 @@ def main():
             for brick in bricks: brick.draw(screen)
             score_text = score_font.render(f"Score: {score}  Level: {level}  Lives: {lives}", True, DARK_GRAY)
             screen.blit(score_text, (10, 10))
+
+        elif game_state == 'PAUSE':
+            # 게임 일시정지 화면
+            pause_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            pause_overlay.set_alpha(128)
+            pause_overlay.fill(BLACK)
+            screen.blit(pause_overlay, (0, 0))
+            
+            pause_text = title_font.render("PAUSED", True, YELLOW)
+            resume_text = sub_font.render("Press ESC to Resume", True, WHITE)
+            screen.blit(pause_text, pause_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 60)))
+            screen.blit(resume_text, resume_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 40)))
 
         elif game_state == 'GAME_OVER':
             over_text = title_font.render("GAME OVER", True, RED)
