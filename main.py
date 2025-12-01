@@ -6,7 +6,7 @@ import os
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.3.0'  #파워업 기능 추가
+__version__ = '1.3.1'  #보라색 파워업 시간 추가
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
@@ -201,6 +201,7 @@ def main():
     paddle_width = PADDLE_WIDTH
     score_multiplier = 1
     paddle_width_timer = 0
+    slow_ball_timer = 0  # 느린 공 지속시간
 
     running = True
     while running:
@@ -237,6 +238,7 @@ def main():
                         score_multiplier = 1  # 점수 배수 초기화
                         powerups = []  # 파워업 리스트 초기화
                         paddle_width_timer = 0
+                        slow_ball_timer = 0  # 느린 공 타이머 초기화
                         ball.reset(level)
                         bricks = create_bricks()
                         game_state = 'START'
@@ -374,6 +376,7 @@ def main():
                     elif powerup.powerup_type == 'SLOW_BALL':
                         ball.dx *= 0.7
                         ball.dy *= 0.7
+                        slow_ball_timer = POWERUP_DURATION  # 10초 지속
                     elif powerup.powerup_type == 'DOUBLE_SCORE':
                         # 이 순간 얻는 점수에만 2배 적용
                         score *= 2
@@ -390,6 +393,13 @@ def main():
                 paddle_width_timer -= 1
                 if paddle_width_timer == 0:
                     paddle.rect.width = PADDLE_WIDTH
+            
+            if slow_ball_timer > 0:
+                slow_ball_timer -= 1
+                if slow_ball_timer == 0:
+                    # 느린 공 효과 해제 (원래 속도로 복구)
+                    ball.dx /= 0.7
+                    ball.dy /= 0.7
 
             # 화면 그리기
             paddle.draw(screen)
