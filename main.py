@@ -6,7 +6,7 @@ import os
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.3.2'  #노란색 시간 추가
+__version__ = '1.3.3'  #시작화면과 설명화면 추가
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
@@ -194,7 +194,8 @@ def main():
     level = 1
     lives = INITIAL_LIVES
     highscore = load_highscore()  # 하이스코어 로드
-    game_state = 'START'  # START, READY, PLAYING, PAUSE, GAME_OVER
+    game_state = 'MAIN_MENU'  # MAIN_MENU, INSTRUCTIONS, START, READY, PLAYING, PAUSE, GAME_OVER
+    menu_selection = 0  # 0: 게임시작, 1: 게임설명
     
     # 파워업 관련 변수
     powerups = []
@@ -212,9 +213,28 @@ def main():
                 running = False
             
             if event.type == pygame.KEYDOWN:
-                if game_state == 'START':
+                if game_state == 'MAIN_MENU':
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        menu_selection = 0
+                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        menu_selection = 1
+                    elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                        if menu_selection == 0:
+                            game_state = 'START'
+                        elif menu_selection == 1:
+                            game_state = 'INSTRUCTIONS'
+                
+                elif game_state == 'INSTRUCTIONS':
+                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_SPACE:
+                        game_state = 'MAIN_MENU'
+                        menu_selection = 0
+                
+                elif game_state == 'START':
                     if event.key == pygame.K_SPACE:
                         game_state = 'READY'
+                    elif event.key == pygame.K_ESCAPE:
+                        game_state = 'MAIN_MENU'
+                        menu_selection = 0
                 
                 elif game_state == 'READY':
                     if event.key == pygame.K_SPACE:
@@ -243,12 +263,87 @@ def main():
                         score_multiplier_timer = 0  # 점수 배수 타이머 초기화
                         ball.reset(level)
                         bricks = create_bricks()
-                        game_state = 'START'
+                        game_state = 'MAIN_MENU'
+                        menu_selection = 0
 
         screen.fill(WHITE)
 
         # 2. 상태별 로직 및 그리기
-        if game_state == 'START':
+        if game_state == 'MAIN_MENU':
+            # 메인 메뉴 화면
+            title_text = title_font.render("BRICK BREAKER", True, BLUE)
+            screen.blit(title_text, title_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 120)))
+            
+            # 메뉴 항목 렌더링
+            menu_items = ["START GAME", "INSTRUCTIONS"]
+            menu_y_positions = [SCREEN_HEIGHT/2 - 20, SCREEN_HEIGHT/2 + 40]
+            
+            for i, item in enumerate(menu_items):
+                color = ORANGE if i == menu_selection else DARK_GRAY
+                prefix = "▶ " if i == menu_selection else "  "
+                menu_text = sub_font.render(prefix + item, True, color)
+                screen.blit(menu_text, menu_text.get_rect(center=(SCREEN_WIDTH/2, menu_y_positions[i])))
+            
+            hint_text = score_font.render("↑↓ 선택, SPACE 확인", True, DARK_GRAY)
+            screen.blit(hint_text, hint_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT - 60)))
+
+        elif game_state == 'INSTRUCTIONS':
+            # 게임설명 화면
+            title_text = title_font.render("GAME INSTRUCTIONS", True, BLUE)
+            screen.blit(title_text, title_text.get_rect(center=(SCREEN_WIDTH/2, 30)))
+            
+            # 텍스트 위치 설정
+            start_y = 80
+            line_height = 35
+            current_y = start_y
+            
+            # 조작법 섹션
+            control_title = score_font.render("KEYBOARD CONTROLS", True, BLUE)
+            screen.blit(control_title, (20, current_y))
+            current_y += line_height + 5
+            
+            controls = [
+                "← LEFT ARROW: 패들 왼쪽 이동",
+                "→ RIGHT ARROW: 패들 오른쪽 이동",
+                "ESC: 게임 일시정지"
+            ]
+            
+            for control in controls:
+                control_text = score_font.render(control, True, DARK_GRAY)
+                screen.blit(control_text, (40, current_y))
+                current_y += line_height
+            
+            current_y += 10
+            
+            # 파워업 섹션
+            powerup_title = score_font.render("POWER-UPS", True, BLUE)
+            screen.blit(powerup_title, (20, current_y))
+            current_y += line_height + 5
+            
+            # 파워업 정보
+            powerup_info = [
+                ('WIDE_PADDLE', "패들을 1.5배 확대 (10초)"),
+                ('SLOW_BALL', "공의 속도를 0.7배 감소 (10초)"),
+                ('DOUBLE_SCORE', "점수 2배 획득 (10초)"),
+                ('EXTRA_LIFE', "생명력 1개 증가")
+            ]
+            
+            for powerup_type, description in powerup_info:
+                color = POWERUP_COLORS[powerup_type]
+                # 색상 박스 그리기
+                pygame.draw.rect(screen, color, (40, current_y, 20, 20))
+                pygame.draw.rect(screen, BLACK, (40, current_y, 20, 20), 2)
+                
+                # 설명 텍스트
+                desc_text = score_font.render(description, True, DARK_GRAY)
+                screen.blit(desc_text, (70, current_y))
+                current_y += line_height
+            
+            # 돌아가기 안내
+            hint_text = score_font.render("ESC 또는 SPACE로 메뉴로 돌아가기", True, ORANGE)
+            screen.blit(hint_text, hint_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT - 30)))
+
+        elif game_state == 'START':
             # START 상태에서 파워업 없음
             powerups.clear()
             
@@ -256,10 +351,12 @@ def main():
             start_text = sub_font.render("Press SPACE to Start", True, BLACK)
             lives_text = score_font.render(f"Lives: {INITIAL_LIVES}", True, RED)
             highscore_text = score_font.render(f"High Score: {highscore}", True, ORANGE)
+            menu_hint_text = score_font.render("ESC: 메뉴로 돌아가기", True, DARK_GRAY)
             screen.blit(title_text, title_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 50)))
             screen.blit(start_text, start_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 20)))
             screen.blit(lives_text, lives_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 80)))
             screen.blit(highscore_text, highscore_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 120)))
+            screen.blit(menu_hint_text, menu_hint_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT - 30)))
 
         elif game_state == 'READY':
             # 공이 패들 위에 고정된 상태에서 대기
