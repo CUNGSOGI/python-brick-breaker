@@ -6,7 +6,7 @@ import os
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.4.4'  # UI 디자인 변경 (이미지 반영) & 레벨 클리어 후 대기 로직 추가
+__version__ = '1.4.5'  # 버그 수정: 클리어 대기 시간 동안 입력 무시 로직 강화
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
@@ -20,7 +20,7 @@ BRICK_HEIGHT = 20
 BRICK_ROWS = 5
 BRICK_COLS = 10
 FPS = 60
-HEADER_HEIGHT = 60  # 상단 상태바 높이
+HEADER_HEIGHT = 60 
 
 # 색상 (R, G, B)
 WHITE = (255, 255, 255)
@@ -28,10 +28,10 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
-DARK_GRAY = (50, 50, 50) # 기본 배경 회색
+DARK_GRAY = (50, 50, 50) 
 ORANGE = (255, 165, 0)
 YELLOW = (255, 255, 0)
-HEADER_BG = (50, 50, 50) # [디자인 수정] 상단 상태바 배경색 (진한 회색)
+HEADER_BG = (50, 50, 50) 
 
 # 게임 설정
 INITIAL_LIVES = 3
@@ -45,7 +45,7 @@ POWERUP_COLORS = {
     'DOUBLE_SCORE': (255, 200, 0),
     'EXTRA_LIFE': (255, 100, 100)
 }
-POWERUP_DURATION = 300  # 10초
+POWERUP_DURATION = 300 
 
 # --- 헬퍼 함수 ---
 
@@ -182,8 +182,7 @@ def main():
     pygame.display.set_caption(f"{__title__} v{__version__}")
     clock = pygame.time.Clock()
 
-    # 폰트 설정 (깔끔한 고딕/Arial 계열 사용)
-    # 윈도우 기본 폰트인 arial 등을 사용하여 하트 특수문자(♥)를 지원하도록 함
+    # 폰트 설정
     ui_font_large = pygame.font.SysFont('arial', 40, bold=True)  
     ui_font_medium = pygame.font.SysFont('arial', 30, bold=True)
     
@@ -213,17 +212,14 @@ def main():
     slow_ball_timer = 0
     score_multiplier_timer = 0
 
-    # UI 그리기 헬퍼 함수 (중복 제거)
+    # UI 그리기 헬퍼 함수
     def draw_game_ui():
-        # 1. 헤더 배경 (진한 회색)
         pygame.draw.rect(screen, HEADER_BG, (0, 0, SCREEN_WIDTH, HEADER_HEIGHT))
         
-        # 2. LEVEL (왼쪽, 흰색)
         level_surface = ui_font_medium.render(f"LEVEL: {level}", True, WHITE)
         level_rect = level_surface.get_rect(midleft=(20, HEADER_HEIGHT // 2))
         screen.blit(level_surface, level_rect)
 
-        # 3. SCORE (중앙, 흰색, 큼)
         score_str = f"SCORE: {score}"
         if score_multiplier == 2:
             score_str += " (x2)"
@@ -231,8 +227,6 @@ def main():
         score_rect = score_surface.get_rect(center=(SCREEN_WIDTH // 2, HEADER_HEIGHT // 2))
         screen.blit(score_surface, score_rect)
 
-        # 4. LIVES (오른쪽, 빨간색 하트 + 텍스트)
-        # 하트 특수문자 사용
         lives_surface = ui_font_medium.render(f"♥ x {lives}", True, RED) 
         lives_rect = lives_surface.get_rect(midright=(SCREEN_WIDTH - 20, HEADER_HEIGHT // 2))
         screen.blit(lives_surface, lives_rect)
@@ -241,6 +235,7 @@ def main():
     while running:
         mouse_pos = pygame.mouse.get_pos()
 
+        # 이벤트 처리 루프
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -449,7 +444,6 @@ def main():
             for brick in bricks: brick.draw(screen)
             for powerup in powerups: powerup.draw(screen)
             
-            # UI 그리기 (함수 호출)
             draw_game_ui()
 
         elif game_state == 'PLAYING':
@@ -515,25 +509,41 @@ def main():
                         ball.dx *= -1
                         ball.rect.left = brick.rect.right
 
-            # [수정 2] 스테이지 클리어 로직 변경
+            # [수정된 부분] 스테이지 클리어 처리 - 대기 시간동안 입력 무시
             if all(not brick.active for brick in bricks):
                 screen.fill(WHITE)
-                # 클리어 메시지를 잠시 보여주고
+                
                 clear_text = title_font.render(f"STAGE {level} CLEAR!", True, BLUE)
                 screen.blit(clear_text, clear_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)))
                 pygame.display.flip()
-                pygame.time.delay(2000)
+                
+                # 2초 동안 루프를 돌면서 모든 키 입력을 소비(무시)해버림
+                wait_time = 2000
+                start_wait = pygame.time.get_ticks()
+                
+                waiting = True
+                while waiting:
+                    if pygame.time.get_ticks() - start_wait > wait_time:
+                        waiting = False
+                    
+                    # 이 루프 안에서 발생하는 모든 이벤트(스페이스바 포함)는 
+                    # 아무 기능도 수행하지 않고 사라집니다.
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            pygame.quit()
+                            sys.exit()
+                    
+                    # 대기 중에도 루프가 폭주하지 않도록 틱 제한
+                    clock.tick(FPS)
                 
                 # 레벨업 및 초기화
                 level += 1
                 ball.reset(level)
                 bricks = create_bricks()
                 
-                # 공을 패들 위에 고정
                 ball.rect.centerx = paddle.rect.centerx
                 ball.rect.bottom = paddle.rect.top
                 
-                # 상태를 READY로 변경하여 스페이스바 대기
                 game_state = 'READY'
             
             # 파워업
@@ -581,7 +591,6 @@ def main():
             for brick in bricks: brick.draw(screen)
             for powerup in powerups: powerup.draw(screen)
             
-            # UI 그리기 (함수 호출)
             draw_game_ui()
 
         elif game_state == 'PAUSE':
