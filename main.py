@@ -6,7 +6,7 @@ import os
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.4.6'  # 디자인 개선 및 입력 버퍼 버그 수정 완료
+__version__ = '1.4.7'  # 버그 수정: 패들 위치 리셋, 게임오버 키 변경, 아이템 초기화
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
@@ -305,12 +305,18 @@ def main():
                     elif event.key == pygame.K_ESCAPE:
                          game_state = pre_pause_state
                 
+                # [수정] GAME OVER 키 입력 로직 변경
                 elif game_state == 'GAME_OVER':
+                    # SPACE: 게임 재시작 (READY)
                     if event.key == pygame.K_SPACE:
                         score = 0
                         level = 1
                         lives = INITIAL_LIVES
+                        
+                        # [수정 1] 패들 위치 중앙으로 초기화
                         paddle.rect.width = PADDLE_WIDTH
+                        paddle.rect.centerx = SCREEN_WIDTH // 2 
+                        
                         score_multiplier = 1
                         powerups = []
                         paddle_width_timer = 0
@@ -318,6 +324,25 @@ def main():
                         score_multiplier_timer = 0
                         ball.reset(level)
                         bricks = create_bricks()
+                        
+                        game_state = 'READY' # [수정 2] 바로 게임 준비 상태로
+                    
+                    # ESC: 메인 메뉴로 (MAIN_MENU)
+                    elif event.key == pygame.K_ESCAPE:
+                        score = 0
+                        level = 1
+                        lives = INITIAL_LIVES
+                        paddle.rect.width = PADDLE_WIDTH
+                        paddle.rect.centerx = SCREEN_WIDTH // 2
+                        
+                        score_multiplier = 1
+                        powerups = []
+                        paddle_width_timer = 0
+                        slow_ball_timer = 0
+                        score_multiplier_timer = 0
+                        ball.reset(level)
+                        bricks = create_bricks()
+                        
                         game_state = 'MAIN_MENU'
                         menu_selection = 0
             
@@ -375,32 +400,24 @@ def main():
                 screen.blit(menu_text, text_rect)
 
         elif game_state == 'INSTRUCTIONS':
-            # [디자인 변경] 1. 배경색을 완전히 흰색이 아닌 부드러운 톤으로 변경
             screen.fill((245, 245, 250))
-
-            # [디자인 변경] 2. 상단 타이틀 영역에 헤더와 같은 배경색 띠 적용
             pygame.draw.rect(screen, HEADER_BG, (0, 0, SCREEN_WIDTH, 110))
 
-            # [디자인 변경] 3. 타이틀에 그림자 효과를 주어 입체감 부여 및 색상 변경 (흰색)
             title_shadow = title_font.render("GAME INSTRUCTIONS", True, BLACK)
             title_text = title_font.render("GAME INSTRUCTIONS", True, WHITE)
-            # 그림자를 먼저 약간 빗겨서 있고, 그 위에 메인 텍스트를 그림
             screen.blit(title_shadow, title_shadow.get_rect(center=(SCREEN_WIDTH/2 + 3, 58)))
             screen.blit(title_text, title_text.get_rect(center=(SCREEN_WIDTH/2, 55)))
             
-            start_y = 138 # 본문 시작 위치를 아래로 조정
-            line_height = 40 # 줄 간격을 넓게 조정하여 시원한 느낌 부여
+            start_y = 138
+            line_height = 40
             current_y = start_y
             
-            # 설명 화면 전용 폰트
             instruction_font = pygame.font.SysFont('malgungothic', 25)
 
-            # [디자인 변경] 4. 소제목 스타일: 주황색 강조 및 하단 밑줄 포인트 추가
             control_title = ui_font_medium.render("KEYBOARD CONTROLS", True, ORANGE)
             screen.blit(control_title, (60, current_y))
-            # 소제목 아래에 주황색 선 긋기
             pygame.draw.line(screen, ORANGE, (60, current_y + 35), (60 + control_title.get_width(), current_y + 35), 3)
-            current_y += line_height + 10 # 소제목과 본문 사이 간격
+            current_y += line_height + 10
             
             controls = [
                 "← :  패들 왼쪽 이동",
@@ -409,14 +426,12 @@ def main():
             ]
             
             for control in controls:
-                # 폰트 색상을 진한 회색으로 변경하여 안정감 부여
                 control_text = instruction_font.render(control, True, DARK_GRAY)
-                screen.blit(control_text, (90, current_y)) # 왼쪽 여백 확보
+                screen.blit(control_text, (90, current_y))
                 current_y += line_height
             
-            current_y += 25 # 섹션 사이 간격 추가
+            current_y += 25
             
-            # [디자인 변경] 소제목 스타일 동일하게 적용
             powerup_title = ui_font_medium.render("POWER-UPS", True, ORANGE)
             screen.blit(powerup_title, (60, current_y))
             pygame.draw.line(screen, ORANGE, (60, current_y + 35), (60 + powerup_title.get_width(), current_y + 35), 3)
@@ -431,16 +446,14 @@ def main():
             
             for powerup_type, description in powerup_info:
                 color = POWERUP_COLORS[powerup_type]
-                # [디자인 변경] 5. 아이콘 크기를 키우고 테두리를 명확하게
                 icon_size = 35
                 icon_rect = pygame.Rect(90, current_y + 2, icon_size, icon_size)
                 pygame.draw.rect(screen, color, icon_rect)
-                pygame.draw.rect(screen, DARK_GRAY, icon_rect, 3) # 테두리 두께 증가
+                pygame.draw.rect(screen, DARK_GRAY, icon_rect, 3)
                 
                 desc_text = instruction_font.render(description, True, DARK_GRAY)
-                # 아이콘과 텍스트 사이 간격을 넓힘
                 screen.blit(desc_text, (90 + icon_size + 20, current_y)) 
-                current_y += line_height + 5 # 항목 사이 간격 약간 추가
+                current_y += line_height + 5
 
         elif game_state == 'START':
             powerups.clear()
@@ -480,6 +493,10 @@ def main():
                     ball.rect.centerx = paddle.rect.centerx
                     ball.rect.bottom = paddle.rect.top
                     ball.prev_rect = ball.rect.copy()
+                    
+                    # [수정 3] 생명 잃었을 때 떨어지던 아이템 제거
+                    powerups.clear()
+                    
                     game_state = 'READY' 
             
             # 패들 충돌
@@ -532,7 +549,7 @@ def main():
                         ball.dx *= -1
                         ball.rect.left = brick.rect.right
 
-            # [수정된 부분] 스테이지 클리어 처리 - 대기 시간동안 입력 무시
+            # 스테이지 클리어 처리
             if all(not brick.active for brick in bricks):
                 screen.fill(WHITE)
                 
@@ -540,7 +557,6 @@ def main():
                 screen.blit(clear_text, clear_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)))
                 pygame.display.flip()
                 
-                # 2초 동안 루프를 돌면서 모든 키 입력을 소비(무시)해버림
                 wait_time = 2000
                 start_wait = pygame.time.get_ticks()
                 
@@ -549,14 +565,11 @@ def main():
                     if pygame.time.get_ticks() - start_wait > wait_time:
                         waiting = False
                     
-                    # 이 루프 안에서 발생하는 모든 이벤트(스페이스바 포함)는 
-                    # 아무 기능도 수행하지 않고 사라집니다.
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             pygame.quit()
                             sys.exit()
                     
-                    # 대기 중에도 루프가 폭주하지 않도록 틱 제한
                     clock.tick(FPS)
                 
                 # 레벨업 및 초기화
@@ -564,6 +577,9 @@ def main():
                 ball.reset(level)
                 bricks = create_bricks()
                 
+                # [수정 3] 레벨 클리어 시 떨어지던 아이템 제거
+                powerups.clear()
+
                 ball.rect.centerx = paddle.rect.centerx
                 ball.rect.bottom = paddle.rect.top
                 
@@ -650,7 +666,9 @@ def main():
             score_msg = sub_font.render(f"Final Score: {score}", True, BLACK)
             highscore_msg = sub_font.render(f"High Score: {highscore}", True, ORANGE)
             lives_msg = score_font.render(f"Lives Remaining: {lives}", True, RED)
-            retry_text = sub_font.render("Press SPACE to Start", True, DARK_GRAY)
+            # 안내 문구 추가 (SPACE, ESC)
+            retry_text = sub_font.render("SPACE: Restart   ESC: Main Menu", True, DARK_GRAY)
+            
             screen.blit(over_text, over_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 80)))
             screen.blit(score_msg, score_msg.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 10)))
             screen.blit(highscore_msg, highscore_msg.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 30)))
