@@ -1,4 +1,4 @@
-import pygame, sys, random, json, os, math # [수정] math 모듈 추가
+import pygame, sys, random, json, os, math
 
 # --- 설정 상수 ---
 SCREEN_W, SCREEN_H = 825, 600
@@ -21,7 +21,7 @@ SLOW_FACTOR = 0.7
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.6.0' # 패들 충돌 시 각도 변화 로직 복구
+__version__ = '1.6.1' # 패들 물리 엔진 수정 (절대 각도 -> 벡터 굴절)
 __author__ = 'Python Developer'
 
 # --- 클래스 정의 ---
@@ -284,28 +284,32 @@ def main():
                     ball.dy = abs(ball.dy)
                 ball.rect.centery = int(ball.y)
 
-                # [수정됨] 패들 충돌 로직: 위치에 따른 각도 변화
+                # [수정됨] 패들 충돌: 벡터 굴절(Nudge) 방식
+                # 기존 방향을 유지하면서, 맞은 위치에 따라 약간의 회전력을 더함
                 if ball.rect.colliderect(paddle.rect):
-                    if ball.dy > 0: # 내려올 때만
-                        ball.y = paddle.rect.top - BALL_R # 위치 보정
+                    if ball.dy > 0: # 내려오다가 맞음
+                        ball.y = paddle.rect.top - BALL_R
                         ball.rect.centery = int(ball.y)
                         
-                        # 1. 패들 중심으로부터의 거리 비율 계산 (-1.0 ~ 1.0)
-                        center_diff = ball.rect.centerx - paddle.rect.centerx
-                        normalized_diff = center_diff / (paddle.rect.width / 2)
+                        # 1. 기본 반사 (위로)
+                        ball.dy *= -1
                         
-                        # 값을 -1 ~ 1 사이로 안전하게 고정
-                        normalized_diff = max(-1, min(1, normalized_diff))
+                        # 2. 맞은 위치 비율 (-1:왼쪽 끝 ~ 1:오른쪽 끝)
+                        hit_pos = (ball.rect.centerx - paddle.rect.centerx) / (paddle.rect.width / 2)
+                        hit_pos = max(-1, min(1, hit_pos))
                         
-                        # 2. 현재 공의 속력(Speed) 계산 (피타고라스)
+                        # 3. 현재 속력 저장
                         current_speed = math.hypot(ball.dx, ball.dy)
                         
-                        # 3. 각도 변경 (X축 속도 조절)
-                        # 최대 85%의 속도를 가로 방향으로 전환 (너무 평평해지지 않게 제한)
-                        ball.dx = normalized_diff * current_speed * 0.85
+                        # 4. X축 속도에 '힘'을 더함 (기존 방향 유지 + 굴절)
+                        # 값을 더하는 방식이므로 왼쪽에서 와서 왼쪽을 맞춰도(dx > 0, hit < 0) 
+                        # dx가 바로 음수가 되지 않고 줄어들기만 하여 자연스럽게 튕김
+                        ball.dx += hit_pos * 3.0 
                         
-                        # 4. Y축 속도 재계산 (총 속도 유지)
-                        ball.dy = -math.sqrt(abs(current_speed**2 - ball.dx**2))
+                        # 5. 속력 정규화 (빨라짐 방지)
+                        new_speed = math.hypot(ball.dx, ball.dy)
+                        ball.dx = (ball.dx / new_speed) * current_speed
+                        ball.dy = (ball.dy / new_speed) * current_speed
 
                 hit_idx = ball.rect.collidelist([b.rect for b in bricks if b.active])
                 if hit_idx != -1:
