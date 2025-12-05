@@ -6,7 +6,7 @@ import os
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.4.7'  # 버그 수정: 패들 위치 리셋, 게임오버 키 변경, 아이템 초기화
+__version__ = '1.4.8'  # 업데이트: SLOW_BALL 로직 변경 (속도 0.5배, 시간 중첩)
 __author__ = 'Python Developer'
 
 # --- 설정 상수 ---
@@ -208,6 +208,8 @@ def main():
     
     powerups = []
     score_multiplier = 1
+    
+    # 타이머 변수
     paddle_width_timer = 0
     slow_ball_timer = 0
     score_multiplier_timer = 0
@@ -305,7 +307,6 @@ def main():
                     elif event.key == pygame.K_ESCAPE:
                          game_state = pre_pause_state
                 
-                # [수정] GAME OVER 키 입력 로직 변경
                 elif game_state == 'GAME_OVER':
                     # SPACE: 게임 재시작 (READY)
                     if event.key == pygame.K_SPACE:
@@ -313,7 +314,6 @@ def main():
                         level = 1
                         lives = INITIAL_LIVES
                         
-                        # [수정 1] 패들 위치 중앙으로 초기화
                         paddle.rect.width = PADDLE_WIDTH
                         paddle.rect.centerx = SCREEN_WIDTH // 2 
                         
@@ -325,7 +325,7 @@ def main():
                         ball.reset(level)
                         bricks = create_bricks()
                         
-                        game_state = 'READY' # [수정 2] 바로 게임 준비 상태로
+                        game_state = 'READY'
                     
                     # ESC: 메인 메뉴로 (MAIN_MENU)
                     elif event.key == pygame.K_ESCAPE:
@@ -439,7 +439,7 @@ def main():
             
             powerup_info = [
                 ('WIDE_PADDLE', "패들을 1.5배 확대 (10초)"),
-                ('SLOW_BALL', "공의 속도를 0.7배 감소 (10초)"),
+                ('SLOW_BALL', "공의 속도를 0.5배 감소 (중첩 시 시간 연장)"),
                 ('DOUBLE_SCORE', "점수 2배 획득 (10초)"),
                 ('EXTRA_LIFE', "생명력 1개 증가")
             ]
@@ -494,7 +494,7 @@ def main():
                     ball.rect.bottom = paddle.rect.top
                     ball.prev_rect = ball.rect.copy()
                     
-                    # [수정 3] 생명 잃었을 때 떨어지던 아이템 제거
+                    # 생명 잃었을 때 떨어지던 아이템 제거
                     powerups.clear()
                     
                     game_state = 'READY' 
@@ -577,8 +577,13 @@ def main():
                 ball.reset(level)
                 bricks = create_bricks()
                 
-                # [수정 3] 레벨 클리어 시 떨어지던 아이템 제거
+                # [중요] 레벨 클리어 시 모든 파워업 효과 초기화
                 powerups.clear()
+                slow_ball_timer = 0
+                paddle_width_timer = 0
+                score_multiplier_timer = 0
+                score_multiplier = 1
+                paddle.rect.width = PADDLE_WIDTH # 패들 크기 복구
 
                 ball.rect.centerx = paddle.rect.centerx
                 ball.rect.bottom = paddle.rect.top
@@ -596,10 +601,16 @@ def main():
                     if powerup.powerup_type == 'WIDE_PADDLE':
                         paddle.rect.width = int(PADDLE_WIDTH * 1.5)
                         paddle_width_timer = POWERUP_DURATION
+                    
+                    # [수정됨] SLOW_BALL 로직: 0.5배 속도, 중첩 시 시간 연장
                     elif powerup.powerup_type == 'SLOW_BALL':
-                        ball.dx *= 0.7
-                        ball.dy *= 0.7
-                        slow_ball_timer = POWERUP_DURATION
+                        if slow_ball_timer == 0:
+                            ball.dx *= 0.5
+                            ball.dy *= 0.5
+                            slow_ball_timer = POWERUP_DURATION
+                        else:
+                            slow_ball_timer += POWERUP_DURATION
+                    
                     elif powerup.powerup_type == 'DOUBLE_SCORE':
                         score_multiplier = 2
                         score_multiplier_timer = POWERUP_DURATION
@@ -614,11 +625,12 @@ def main():
                 if paddle_width_timer == 0:
                     paddle.rect.width = PADDLE_WIDTH
             
+            # [수정됨] SLOW_BALL 타이머 및 복구 로직 (0.5 배율 대응)
             if slow_ball_timer > 0:
                 slow_ball_timer -= 1
                 if slow_ball_timer == 0:
-                    ball.dx /= 0.7
-                    ball.dy /= 0.7
+                    ball.dx /= 0.5
+                    ball.dy /= 0.5
             
             if score_multiplier_timer > 0:
                 score_multiplier_timer -= 1
@@ -678,7 +690,7 @@ def main():
         pygame.display.flip()
         clock.tick(FPS)
 
-    pygame.quit()
+    pygame.quit()   
     sys.exit()
 
 if __name__ == "__main__":
