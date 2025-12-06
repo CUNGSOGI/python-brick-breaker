@@ -21,7 +21,7 @@ SLOW_FACTOR = 0.7
 
 # --- 메타데이터 ---
 __title__ = 'Python Brick Breaker'
-__version__ = '1.6.3' # 최적화 및 클리어 화면, 퍼즈 화면버그 수정
+__version__ = '1.6.4' # 최종 클리어 화면 수정
 __author__ = 'Python Developer'
 
 # --- 클래스 ---
@@ -63,7 +63,7 @@ class PowerUp:
 def main():
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-    pygame.display.set_caption("Brick Breaker v1.6.6") # 버전 업데이트
+    pygame.display.set_caption("Brick Breaker v1.6.6")
     clock = pygame.time.Clock()
     
     fonts = {
@@ -77,10 +77,6 @@ def main():
     bricks, powerups = [], []
     score, level, lives, highscore = 0, 1, INITIAL_LIVES, 0
     state, menu_sel, pause_sel = 'MAIN_MENU', 0, 0
-    
-    # [수정] 일시정지 전 상태를 저장할 변수
-    pre_pause_state = 'READY' 
-    
     timers = {'wide': 0, 'slow': 0, 'dbl': 0}
     score_mult = 1
     
@@ -135,16 +131,15 @@ def main():
             if i == sel_idx: pygame.draw.rect(screen, ORANGE, r.inflate(40, 20), 3)
 
     def draw_end_screen(title, msg, col):
-        # [수정] UI 겹침 해결: Y좌표 간격 재조정
-        draw_text(title, 'T', col, (SCREEN_W//2, SCREEN_H//2 - 120)) # 타이틀 위로 올림
+        draw_text(title, 'T', col, (SCREEN_W//2, SCREEN_H//2 - 120))
         if msg: draw_text(msg, 'L', ORANGE, (SCREEN_W//2, SCREEN_H//2 - 50))
-        
-        # 점수 표시 간격 조정
         draw_text(f"Final Score: {score}", 'SUB', BLACK, (SCREEN_W//2, SCREEN_H//2 + 10))
-        if state == 'GAME_OVER': 
+        
+        # [수정 1] ALL_CLEAR 상태에서도 High Score 표시되도록 조건 변경
+        if state in ['GAME_OVER', 'ALL_CLEAR']: 
             draw_text(f"High Score: {highscore}", 'SUB', ORANGE, (SCREEN_W//2, SCREEN_H//2 + 50))
             
-        gy = SCREEN_H // 2 + 130 # 버튼 위치 아래로 내림
+        gy = SCREEN_H // 2 + 130
         draw_keycap("SPACE", "RESTART", BLUE, (SCREEN_W//2 - 20, gy), 'left')
         draw_keycap("ESC", "MENU", ORANGE, (SCREEN_W//2 + 20, gy), 'right')
 
@@ -173,31 +168,21 @@ def main():
                         elif menu_sel == 2: sys.exit()
                 elif state == 'INFO' and e.key == pygame.K_ESCAPE: state = 'MAIN_MENU'
                 elif state == 'START' and e.key == pygame.K_SPACE: state = 'READY'
-                
                 elif state == 'READY':
                     if e.key == pygame.K_SPACE: state = 'PLAYING'
-                    # [수정] READY에서 일시정지 시 되돌아올 상태 저장
-                    elif e.key == pygame.K_ESCAPE: 
-                        pre_pause_state = 'READY'
-                        state = 'PAUSE'
-                        
+                    elif e.key == pygame.K_ESCAPE: state = 'PAUSE'
                 elif state == 'PLAYING':
-                    # [수정] PLAYING에서 일시정지 시 되돌아올 상태 저장
-                    if e.key == pygame.K_ESCAPE: 
-                        pre_pause_state = 'PLAYING'
-                        state = 'PAUSE'
+                    if e.key == pygame.K_ESCAPE: state = 'PAUSE'
                     elif e.key == pygame.K_c: 
                         for b in bricks: b.active = False
-                        
                 elif state == 'PAUSE':
                     if e.key == pygame.K_UP: pause_sel = (pause_sel - 1) % 3
                     elif e.key == pygame.K_DOWN: pause_sel = (pause_sel + 1) % 3
                     elif e.key in (pygame.K_RETURN, pygame.K_SPACE):
-                        if pause_sel == 0: state = pre_pause_state # [수정] 저장된 상태로 복귀
+                        if pause_sel == 0: state = 'PLAYING'
                         elif pause_sel == 1: init_game(True); state = 'MAIN_MENU'
                         elif pause_sel == 2: sys.exit()
-                    elif e.key == pygame.K_ESCAPE: state = pre_pause_state # [수정] 저장된 상태로 복귀
-                    
+                    elif e.key == pygame.K_ESCAPE: state = 'PLAYING'
                 elif state in ['GAME_OVER', 'ALL_CLEAR']:
                     if e.key == pygame.K_SPACE: init_game(True); state = 'READY'
                     elif e.key == pygame.K_ESCAPE: init_game(True); state = 'MAIN_MENU'
@@ -208,7 +193,7 @@ def main():
                     elif menu_sel == 1: state = 'INFO'
                     else: sys.exit()
                 elif state == 'PAUSE':
-                    if pause_sel == 0: state = pre_pause_state # [수정] 저장된 상태로 복귀
+                    if pause_sel == 0: state = 'PLAYING'
                     elif pause_sel == 1: init_game(True); state = 'MAIN_MENU'
                     else: sys.exit()
 
@@ -299,7 +284,11 @@ def main():
 
                 if not any(b.active for b in bricks):
                     screen.fill(WHITE); draw_text(f"STAGE {level} CLEAR!", 'T', BLUE, (SCREEN_W//2, SCREEN_H//2))
-                    pygame.display.flip(); pygame.time.wait(2000)
+                    pygame.display.flip()
+                    pygame.time.wait(2000)
+                    # [수정 2] 대기 시간 동안 쌓인 키 입력(스페이스바 등) 제거 -> 자동 시작 방지
+                    pygame.event.clear() 
+                    
                     if level >= MAX_LEVEL: state = 'ALL_CLEAR'
                     else: level += 1; init_game(False, False); state = 'READY'
 
